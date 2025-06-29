@@ -148,14 +148,7 @@ export default function Home() {
         if (aiResponse.clients) setFilteredClientsData(aiResponse.clients);
         if (aiResponse.workers) setFilteredWorkersData(aiResponse.workers);
         if (aiResponse.tasks) setFilteredTasksData(aiResponse.tasks);
-      } catch {}
-        // Handle cases where AI returns a natural language answer instead of JSON
-        // For now, we'll just clear filters if it's not parsable JSON for filtered data
-        setFilteredClientsData([]);
-        setFilteredWorkersData([]);
-        setFilteredTasksData([]);
-        setAiResponseText(data.result);
-      }
+      } catch {};
 
     } catch (error) {
       console.error("Error during AI search:", error);
@@ -219,10 +212,7 @@ export default function Home() {
         const suggestions = JSON.parse(cleanedResult);
         console.log("Parsed AI Cleaning Suggestions:", suggestions);
         setCleaningSuggestions(suggestions);
-      } catch {}
-        console.warn("AI cleaning suggestions were not a JSON object, displaying as is:", data.result);
-        setCleaningSuggestions([]);
-      }
+      } catch {};
 
     } catch (error) {
       console.error("Error fetching cleaning suggestions:", error);
