@@ -111,7 +111,7 @@ const validateBrokenJson = (data: Record<string, string | number | boolean | obj
     if (value && typeof value === 'string') {
       try {
         JSON.parse(value);
-      } catch (_e) {
+      } catch (/* _e */) {
         errors.push({ rowIndex, header, message: 'Invalid JSON format' });
       }
     }
