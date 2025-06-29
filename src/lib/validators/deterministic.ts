@@ -113,6 +113,7 @@ const validateBrokenJson = (data: Record<string, string | number | boolean | obj
         JSON.parse(value);
       } catch {};
     }
+    }
   });
   return errors;
 };
