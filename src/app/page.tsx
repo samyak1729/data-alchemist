@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EntityData {
-  data: any[];
+  data: Record<string, any>[];
   headers: string[];
   fileName: string;
 }
@@ -19,8 +19,8 @@ interface CleaningSuggestion {
   entityType: 'clients' | 'workers' | 'tasks';
   rowIndex: number;
   header: string;
-  originalValue: any;
-  suggestedValue: any;
+  originalValue: string;
+  suggestedValue: string;
   reason: string;
 }
 
@@ -31,9 +31,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<string>('clients');
   const [allValidationErrors, setAllValidationErrors] = useState<Record<string, ValidationResult[]>>({});
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filteredClientsData, setFilteredClientsData] = useState<any[]>([]);
-  const [filteredWorkersData, setFilteredWorkersData] = useState<any[]>([]);
-  const [filteredTasksData, setFilteredTasksData] = useState<any[]>([]);
+  const [filteredClientsData, setFilteredClientsData] = useState<Record<string, any>[]>([]);
+  const [filteredWorkersData, setFilteredWorkersData] = useState<Record<string, any>[]>([]);
+  const [filteredTasksData, setFilteredTasksData] = useState<Record<string, any>[]>([]);
   const [aiResponseText, setAiResponseText] = useState<string>('');
   const [cleaningSuggestions, setCleaningSuggestions] = useState<CleaningSuggestion[]>([]);
 
@@ -148,7 +148,7 @@ export default function Home() {
         if (aiResponse.clients) setFilteredClientsData(aiResponse.clients);
         if (aiResponse.workers) setFilteredWorkersData(aiResponse.workers);
         if (aiResponse.tasks) setFilteredTasksData(aiResponse.tasks);
-      } catch (parseError) {
+      } catch (_parseError) {
         console.warn("AI response was not a JSON object, displaying as is:", data.result);
         // Handle cases where AI returns a natural language answer instead of JSON
         // For now, we'll just clear filters if it's not parsable JSON for filtered data
@@ -165,9 +165,9 @@ export default function Home() {
   };
 
   const handleAcceptAllSuggestions = () => {
-    let newClientsData = { ...clientsData };
-    let newWorkersData = { ...workersData };
-    let newTasksData = { ...tasksData };
+    const newClientsData = { ...clientsData };
+    const newWorkersData = { ...workersData };
+    const newTasksData = { ...tasksData };
 
     cleaningSuggestions.forEach(suggestion => {
       if (suggestion.entityType === 'clients') {
@@ -220,8 +220,8 @@ export default function Home() {
         const suggestions = JSON.parse(cleanedResult);
         console.log("Parsed AI Cleaning Suggestions:", suggestions);
         setCleaningSuggestions(suggestions);
-      } catch (parseError) {
-        console.error("Error parsing AI cleaning suggestions:", parseError);
+      } catch (_parseError) {
+        console.error("Error parsing AI cleaning suggestions:", _parseError);
         console.warn("AI cleaning suggestions were not a JSON object, displaying as is:", data.result);
         setCleaningSuggestions([]);
       }

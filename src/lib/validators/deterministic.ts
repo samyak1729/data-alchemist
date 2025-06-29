@@ -22,7 +22,7 @@ const validateRequiredColumns = (headers: string[], requiredHeaders: string[]): 
 };
 
 // Rule: Duplicate IDs
-const validateDuplicateIds = (data: any[], idHeader: string): ValidationResult[] => {
+const validateDuplicateIds = (data: Record<string, any>[], idHeader: string): ValidationResult[] => {
   const seenIds = new Set<string>();
   const duplicateIds = new Set<string>();
   data.forEach(row => {
@@ -88,7 +88,7 @@ export const validateAndNormalizeList = (
 
 
 // Rule: Out-of-Range Values
-const validateOutOfRange = (data: any[], header: string, min: number, max: number): ValidationResult[] => {
+const validateOutOfRange = (data: Record<string, any>[], header: string, min: number, max: number): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   data.forEach((row, rowIndex) => {
     const value = Number(row[header]);
@@ -104,14 +104,14 @@ const validateOutOfRange = (data: any[], header: string, min: number, max: numbe
 };
 
 // Rule: Broken JSON
-const validateBrokenJson = (data: any[], header: string): ValidationResult[] => {
+const validateBrokenJson = (data: Record<string, any>[], header: string): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   data.forEach((row, rowIndex) => {
     const value = row[header];
     if (value && typeof value === 'string') {
       try {
         JSON.parse(value);
-      } catch (e) {
+      } catch (_e) {
         errors.push({ rowIndex, header, message: 'Invalid JSON format' });
       }
     }
@@ -121,8 +121,8 @@ const validateBrokenJson = (data: any[], header: string): ValidationResult[] => 
 
 // Rule: Unknown References (Requested TaskIDs not found in tasks)
 const validateUnknownReferences = (
-  clientsData: any[],
-  tasksData: any[]
+  clientsData: Record<string, any>[],
+  tasksData: Record<string, any>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   const taskIds = new Set(tasksData.map(task => task.TaskID));
@@ -155,7 +155,7 @@ const validateUnknownReferences = (
 };
 
 // Rule: Overloaded Workers (AvailableSlots.length < MaxLoadPerPhase)
-const validateOverloadedWorkers = (workersData: any[]): ValidationResult[] => {
+const validateOverloadedWorkers = (workersData: Record<string, any>[]): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   workersData.forEach((worker, workerIndex) => {
     const availableSlotsStr = worker.AvailableSlots;
@@ -186,8 +186,8 @@ const validateOverloadedWorkers = (workersData: any[]): ValidationResult[] => {
 
 // Rule: Skill-Coverage Matrix (every RequiredSkill maps to at least one worker)
 const validateSkillCoverageMatrix = (
-  tasksData: any[],
-  workersData: any[]
+  tasksData: Record<string, any>[],
+  workersData: Record<string, any>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   const workerSkills = new Set<string>();
@@ -231,8 +231,8 @@ const validateSkillCoverageMatrix = (
 
 // Rule: Max-Concurrency Feasibility (MaxConcurrent <= count of qualified, available workers)
 const validateMaxConcurrencyFeasibility = (
-  tasksData: any[],
-  workersData: any[]
+  tasksData: Record<string, any>[],
+  workersData: Record<string, any>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
 
@@ -277,8 +277,8 @@ const validateMaxConcurrencyFeasibility = (
 
 // Rule: Phase-Slot Saturation (sum of task durations per phase > total worker slots)
 const validatePhaseSlotSaturation = (
-  tasksData: any[],
-  workersData: any[]
+  tasksData: Record<string, any>[],
+  workersData: Record<string, any>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   const phaseCapacities: { [key: number]: number } = {}; // MaxLoadPerPhase sum
@@ -361,9 +361,9 @@ const validatePhaseSlotSaturation = (
 // --- Main Validation Orchestrator ---
 
 interface AllData {
-  clients: { data: any[]; headers: string[] };
-  workers: { data: any[]; headers: string[] };
-  tasks: { data: any[]; headers: string[] };
+  clients: { data: Record<string, any>[]; headers: string[] };
+  workers: { data: Record<string, any>[]; headers: string[] };
+  tasks: { data: Record<string, any>[]; headers: string[] };
 }
 
 export const runDeterministicValidations = (
