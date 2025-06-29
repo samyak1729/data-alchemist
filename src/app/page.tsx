@@ -1,19 +1,39 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
 import Papa from "papaparse";
+import { runDeterministicValidations, validateAndNormalizeList, ValidationResult } from "@/lib/validators/deterministic";
 
 export default function Home() {
   const [data, setData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string>("");
+  const [entityType, setEntityType] = useState<'clients' | 'workers' | 'tasks' | 'unknown'>('unknown');
+  const [validationErrors, setValidationErrors] = useState<ValidationResult[]>([]);
+
+  const triggerValidation = useCallback(() => {
+    if (data.length > 0) {
+      const results = runDeterministicValidations(data, headers, entityType);
+      setValidationErrors(results.errors);
+    }
+  }, [data, headers, entityType]);
+
+  useEffect(() => {
+    triggerValidation();
+  }, [data, triggerValidation]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setFileName(file.name);
+      const name = file.name.toLowerCase();
+      if (name.includes('client')) setEntityType('clients');
+      else if (name.includes('worker')) setEntityType('workers');
+      else if (name.includes('task')) setEntityType('tasks');
+      else setEntityType('unknown');
+
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -33,6 +53,34 @@ export default function Home() {
     const newData = [...data];
     newData[rowIndex][header] = e.target.value;
     setData(newData);
+  };
+
+  const handleCellBlur = (rowIndex: number, header: string) => {
+    const listValidationSchemas = {
+        clients: { 'Requested TaskIDs': { numeric: false, allowRanges: false } },
+        workers: { 'AvailableSlots': { numeric: true, allowRanges: false }, 'Skills': { numeric: false, allowRanges: false } },
+        tasks: { 'PreferredPhases': { numeric: true, allowRanges: true }, 'RequiredSkills': { numeric: false, allowRanges: false } }
+    };
+
+    if (entityType !== 'unknown' && listValidationSchemas[entityType][header]) {
+        const options = listValidationSchemas[entityType][header];
+        const cellValue = data[rowIndex][header];
+        const result = validateAndNormalizeList(cellValue, options);
+
+        if (result.normalized !== undefined && result.normalized !== cellValue) {
+            const newData = [...data];
+            newData[rowIndex][header] = result.normalized;
+            setData(newData);
+        }
+    }
+    triggerValidation(); // Re-run validation on blur
+  };
+
+  const getCellClassName = (rowIndex: number, header: string) => {
+    const isError = validationErrors.some(
+      (err) => err.rowIndex === rowIndex && err.header === header
+    );
+    return isError ? "ring-2 ring-red-500" : "";
   };
 
   return (
@@ -78,11 +126,11 @@ export default function Home() {
           <CardContent>
             <div className="overflow-x-auto">
               {data.length > 0 ? (
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-sm text-left border-collapse">
                   <thead className="bg-muted">
                     <tr>
                       {headers.map((header) => (
-                        <th key={header} className="p-2">{header}</th>
+                        <th key={header} className="p-2 border-b">{header}</th>
                       ))}
                     </tr>
                   </thead>
@@ -95,7 +143,8 @@ export default function Home() {
                               type="text"
                               value={row[header] || ""}
                               onChange={(e) => handleCellChange(e, rowIndex, header)}
-                              className="w-full h-full p-2 border-none rounded-none focus:ring-2 focus:ring-primary"
+                              onBlur={() => handleCellBlur(rowIndex, header)}
+                              className={`w-full h-full p-2 bg-transparent border-none rounded-none focus:ring-2 focus:ring-primary ${getCellClassName(rowIndex, header)}`}
                             />
                           </td>
                         ))}
@@ -119,11 +168,23 @@ export default function Home() {
             <CardTitle>3. Validation Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="p-4 border rounded-md bg-muted/40 min-h-[100px] flex items-center justify-center">
-              <p className="text-muted-foreground">
-                Validation results will be shown here.
-              </p>
-            </div>
+            {validationErrors.length > 0 ? (
+              <ul className="list-disc space-y-1 pl-5 text-sm text-red-600">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>
+                    {error.rowIndex === -1
+                      ? error.message
+                      : `Row ${error.rowIndex + 1}, Column '${error.header}': ${error.message}`}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="p-4 border rounded-md bg-muted/40 min-h-[100px] flex items-center justify-center">
+                <p className="text-muted-foreground">
+                  {data.length > 0 ? "No validation errors found." : "Validation results will be shown here."}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
