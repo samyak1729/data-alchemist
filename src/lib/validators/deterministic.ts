@@ -106,13 +106,12 @@ const validateOutOfRange = (data: Record<string, string | number | boolean | obj
 // Rule: Broken JSON
 const validateBrokenJson = (data: Record<string, string | number | boolean | object>[], header: string): ValidationResult[] => {
   const errors: ValidationResult[] = [];
-  data.forEach((row, rowIndex) => {
+  data.forEach((row, _rowIndex) => {
     const value = row[header];
     if (value && typeof value === 'string') {
       try {
         JSON.parse(value);
       } catch {};
-    }
   });
   return errors;
 };
