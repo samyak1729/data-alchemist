@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EntityData {
-  data: Record<string, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  data: Record<string, string | number | boolean | object>[];
   headers: string[];
   fileName: string;
 }
@@ -25,15 +25,15 @@ interface CleaningSuggestion {
 }
 
 export default function Home() {
-  const [clientsData, setClientsData] = useState<EntityData>({ data: [], headers: [], fileName: '' }); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const [workersData, setWorkersData] = useState<EntityData>({ data: [], headers: [], fileName: '' }); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const [tasksData, setTasksData] = useState<EntityData>({ data: [], headers: [], fileName: '' }); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [clientsData, setClientsData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
+  const [workersData, setWorkersData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
+  const [tasksData, setTasksData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
   const [activeTab, setActiveTab] = useState<string>('clients');
-  const [allValidationErrors, setAllValidationErrors] = useState<Record<string, ValidationResult[]>>({}); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [allValidationErrors, setAllValidationErrors] = useState<Record<string, ValidationResult[]>>({});
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filteredClientsData, setFilteredClientsData] = useState<Record<string, any>[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const [filteredWorkersData, setFilteredWorkersData] = useState<Record<string, any>[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const [filteredTasksData, setFilteredTasksData] = useState<Record<string, any>[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [filteredClientsData, setFilteredClientsData] = useState<Record<string, string | number | boolean | object>[]>([]);
+  const [filteredWorkersData, setFilteredWorkersData] = useState<Record<string, string | number | boolean | object>[]>([]);
+  const [filteredTasksData, setFilteredTasksData] = useState<Record<string, string | number | boolean | object>[]>([]);
   const [aiResponseText, setAiResponseText] = useState<string>('');
   const [cleaningSuggestions, setCleaningSuggestions] = useState<CleaningSuggestion[]>([]);
 
@@ -59,7 +59,7 @@ export default function Home() {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          const newEntityData = { data: results.data as Record<string, any>[], headers: results.meta.fields || [], fileName: file.name }; // eslint-disable-line @typescript-eslint/no-explicit-any
+          const newEntityData = { data: results.data as Record<string, string | number | boolean | object>[], headers: results.meta.fields || [], fileName: file.name };
           if (entityType === 'clients') setClientsData(newEntityData);
           else if (entityType === 'workers') setWorkersData(newEntityData);
           else if (entityType === 'tasks') setTasksData(newEntityData);
@@ -76,7 +76,7 @@ export default function Home() {
   ) => {
     const setter = entityType === 'clients' ? setClientsData : entityType === 'workers' ? setWorkersData : setTasksData;
     setter(prev => {
-      const newData = [...prev.data] as Record<string, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const newData = [...prev.data] as Record<string, string | number | boolean | object>[];
       newData[rowIndex][header] = e.target.value;
       return { ...prev, data: newData };
     });
@@ -93,7 +93,7 @@ export default function Home() {
         tasks: { 'PreferredPhases': { numeric: true, allowRanges: true }, 'RequiredSkills': { numeric: false, allowRanges: false } }
     };
 
-    const currentData = entityType === 'clients' ? clientsData.data : entityType === 'workers' ? workersData.data : tasksData.data; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const currentData = entityType === 'clients' ? clientsData.data : entityType === 'workers' ? workersData.data : tasksData.data;
 
     if (listValidationSchemas[entityType] && listValidationSchemas[entityType][header]) {
         const options = listValidationSchemas[entityType][header];
@@ -103,7 +103,7 @@ export default function Home() {
         if (result.normalized !== undefined && result.normalized !== cellValue) {
             const setter = entityType === 'clients' ? setClientsData : entityType === 'workers' ? setWorkersData : setTasksData;
             setter(prev => {
-                const newData = [...prev.data] as Record<string, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+                const newData = [...prev.data] as Record<string, string | number | boolean | object>[];
                 newData[rowIndex][header] = result.normalized;
                 return { ...prev, data: newData };
             });
@@ -144,7 +144,7 @@ export default function Home() {
       // Assuming the AI returns filtered data in a specific JSON format
       // You'll need to adjust this parsing based on your AI's actual output
       try {
-        const aiResponse = JSON.parse(data.result) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+        const aiResponse = JSON.parse(data.result) as Record<string, string | number | boolean | object>;
         if (aiResponse.clients) setFilteredClientsData(aiResponse.clients);
         if (aiResponse.workers) setFilteredWorkersData(aiResponse.workers);
         if (aiResponse.tasks) setFilteredTasksData(aiResponse.tasks);
@@ -171,11 +171,11 @@ export default function Home() {
 
     cleaningSuggestions.forEach(suggestion => {
       if (suggestion.entityType === 'clients') {
-        newClientsData.data[suggestion.rowIndex][suggestion.header] = suggestion.suggestedValue; // eslint-disable-line @typescript-eslint/no-explicit-any
+        newClientsData.data[suggestion.rowIndex][suggestion.header] = suggestion.suggestedValue;
       } else if (suggestion.entityType === 'workers') {
-        newWorkersData.data[suggestion.rowIndex][suggestion.header] = suggestion.suggestedValue; // eslint-disable-line @typescript-eslint/no-explicit-any
+        newWorkersData.data[suggestion.rowIndex][suggestion.header] = suggestion.suggestedValue;
       } else if (suggestion.entityType === 'tasks') {
-        newTasksData.data[suggestion.rowIndex][suggestion.header] = suggestion.suggestedValue; // eslint-disable-line @typescript-eslint/no-explicit-any
+        newTasksData.data[suggestion.rowIndex][suggestion.header] = suggestion.suggestedValue;
       }
     });
 
@@ -241,7 +241,7 @@ export default function Home() {
         : setTasksData;
 
     setter(prev => {
-      const newData = [...prev.data] as Record<string, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const newData = [...prev.data] as Record<string, string | number | boolean | object>[];
       newData[suggestion.rowIndex][suggestion.header] = suggestion.suggestedValue;
       return { ...prev, data: newData };
     });
@@ -253,10 +253,10 @@ export default function Home() {
     triggerValidation(); // Re-run validation after applying suggestion
   };
 
-  const renderDataTable = (data: Record<string, any>[], headers: string[], entityType: 'clients' | 'workers' | 'tasks') => { // eslint-disable-line @typescript-eslint/no-explicit-any
-    const displayData = (entityType === 'clients' && filteredClientsData.length > 0) ? filteredClientsData : // eslint-disable-line @typescript-eslint/no-explicit-any
-                        (entityType === 'workers' && filteredWorkersData.length > 0) ? filteredWorkersData : // eslint-disable-line @typescript-eslint/no-explicit-any
-                        (entityType === 'tasks' && filteredTasksData.length > 0) ? filteredTasksData : // eslint-disable-line @typescript-eslint/no-explicit-any
+  const renderDataTable = (data: Record<string, string | number | boolean | object>[], headers: string[], entityType: 'clients' | 'workers' | 'tasks') => {
+    const displayData = (entityType === 'clients' && filteredClientsData.length > 0) ? filteredClientsData :
+                        (entityType === 'workers' && filteredWorkersData.length > 0) ? filteredWorkersData :
+                        (entityType === 'tasks' && filteredTasksData.length > 0) ? filteredTasksData :
                         data;
 
     if (displayData.length === 0) {

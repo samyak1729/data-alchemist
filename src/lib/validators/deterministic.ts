@@ -22,7 +22,7 @@ const validateRequiredColumns = (headers: string[], requiredHeaders: string[]): 
 };
 
 // Rule: Duplicate IDs
-const validateDuplicateIds = (data: Record<string, any>[], idHeader: string): ValidationResult[] => { // eslint-disable-line @typescript-eslint/no-explicit-any
+const validateDuplicateIds = (data: Record<string, string | number | boolean | object>[], idHeader: string): ValidationResult[] => {
   const seenIds = new Set<string>();
   const duplicateIds = new Set<string>();
   data.forEach(row => {
@@ -88,7 +88,7 @@ export const validateAndNormalizeList = (
 
 
 // Rule: Out-of-Range Values
-const validateOutOfRange = (data: Record<string, any>[], header: string, min: number, max: number): ValidationResult[] => { // eslint-disable-line @typescript-eslint/no-explicit-any
+const validateOutOfRange = (data: Record<string, string | number | boolean | object>[], header: string, min: number, max: number): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   data.forEach((row, rowIndex) => {
     const value = Number(row[header]);
@@ -104,7 +104,7 @@ const validateOutOfRange = (data: Record<string, any>[], header: string, min: nu
 };
 
 // Rule: Broken JSON
-const validateBrokenJson = (data: Record<string, any>[], header: string): ValidationResult[] => { // eslint-disable-line @typescript-eslint/no-explicit-any
+const validateBrokenJson = (data: Record<string, string | number | boolean | object>[], header: string): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   data.forEach((row, rowIndex) => {
     const value = row[header];
@@ -120,9 +120,9 @@ const validateBrokenJson = (data: Record<string, any>[], header: string): Valida
 };
 
 // Rule: Unknown References (Requested TaskIDs not found in tasks)
-const validateUnknownReferences = ( // eslint-disable-line @typescript-eslint/no-explicit-any
-  clientsData: Record<string, any>[], // eslint-disable-line @typescript-eslint/no-explicit-any
-  tasksData: Record<string, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+const validateUnknownReferences = (
+  clientsData: Record<string, string | number | boolean | object>[],
+  tasksData: Record<string, string | number | boolean | object>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   const taskIds = new Set(tasksData.map(task => task.TaskID));
@@ -155,7 +155,7 @@ const validateUnknownReferences = ( // eslint-disable-line @typescript-eslint/no
 };
 
 // Rule: Overloaded Workers (AvailableSlots.length < MaxLoadPerPhase)
-const validateOverloadedWorkers = (workersData: Record<string, any>[]): ValidationResult[] => { // eslint-disable-line @typescript-eslint/no-explicit-any
+const validateOverloadedWorkers = (workersData: Record<string, string | number | boolean | object>[]): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   workersData.forEach((worker, workerIndex) => {
     const availableSlotsStr = worker.AvailableSlots;
@@ -185,9 +185,9 @@ const validateOverloadedWorkers = (workersData: Record<string, any>[]): Validati
 };
 
 // Rule: Skill-Coverage Matrix (every RequiredSkill maps to at least one worker)
-const validateSkillCoverageMatrix = ( // eslint-disable-line @typescript-eslint/no-explicit-any
-  tasksData: Record<string, any>[], // eslint-disable-line @typescript-eslint/no-explicit-any
-  workersData: Record<string, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+const validateSkillCoverageMatrix = (
+  tasksData: Record<string, string | number | boolean | object>[],
+  workersData: Record<string, string | number | boolean | object>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   const workerSkills = new Set<string>();
@@ -230,9 +230,9 @@ const validateSkillCoverageMatrix = ( // eslint-disable-line @typescript-eslint/
 };
 
 // Rule: Max-Concurrency Feasibility (MaxConcurrent <= count of qualified, available workers)
-const validateMaxConcurrencyFeasibility = ( // eslint-disable-line @typescript-eslint/no-explicit-any
-  tasksData: Record<string, any>[], // eslint-disable-line @typescript-eslint/no-explicit-any
-  workersData: Record<string, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+const validateMaxConcurrencyFeasibility = (
+  tasksData: Record<string, string | number | boolean | object>[],
+  workersData: Record<string, string | number | boolean | object>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
 
@@ -276,9 +276,9 @@ const validateMaxConcurrencyFeasibility = ( // eslint-disable-line @typescript-e
 };
 
 // Rule: Phase-Slot Saturation (sum of task durations per phase > total worker slots)
-const validatePhaseSlotSaturation = ( // eslint-disable-line @typescript-eslint/no-explicit-any
-  tasksData: Record<string, any>[], // eslint-disable-line @typescript-eslint/no-explicit-any
-  workersData: Record<string, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
+const validatePhaseSlotSaturation = (
+  tasksData: Record<string, string | number | boolean | object>[],
+  workersData: Record<string, string | number | boolean | object>[]
 ): ValidationResult[] => {
   const errors: ValidationResult[] = [];
   const phaseCapacities: { [key: number]: number } = {}; // MaxLoadPerPhase sum
@@ -361,12 +361,12 @@ const validatePhaseSlotSaturation = ( // eslint-disable-line @typescript-eslint/
 // --- Main Validation Orchestrator ---
 
 interface AllData {
-  clients: { data: Record<string, any>[]; headers: string[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
-  workers: { data: Record<string, any>[]; headers: string[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
-  tasks: { data: Record<string, any>[]; headers: string[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  clients: { data: Record<string, string | number | boolean | object>[]; headers: string[] };
+  workers: { data: Record<string, string | number | boolean | object>[]; headers: string[] };
+  tasks: { data: Record<string, string | number | boolean | object>[]; headers: string[] };
 }
 
-export const runDeterministicValidations = ( // eslint-disable-line @typescript-eslint/no-explicit-any
+export const runDeterministicValidations = (
   allData: AllData
 ): Record<string, ValidationResult[]> => {
   const allErrors: Record<string, ValidationResult[]> = {
