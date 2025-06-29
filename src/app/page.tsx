@@ -5,41 +5,62 @@ import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
 import Papa from "papaparse";
 import { runDeterministicValidations, validateAndNormalizeList, ValidationResult } from "@/lib/validators/deterministic";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface EntityData {
+  data: any[];
+  headers: string[];
+  fileName: string;
+}
 
 export default function Home() {
-  const [data, setData] = useState<any[]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [fileName, setFileName] = useState<string>("");
-  const [entityType, setEntityType] = useState<'clients' | 'workers' | 'tasks' | 'unknown'>('unknown');
-  const [validationErrors, setValidationErrors] = useState<ValidationResult[]>([]);
+  const [clientsData, setClientsData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
+  const [workersData, setWorkersData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
+  const [tasksData, setTasksData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
+  const [activeTab, setActiveTab] = useState<string>('clients');
+  const [allValidationErrors, setAllValidationErrors] = useState<Record<string, ValidationResult[]>>({});
 
   const triggerValidation = useCallback(() => {
-    if (data.length > 0) {
-      const results = runDeterministicValidations(data, headers, entityType);
-      setValidationErrors(results.errors);
+    const errors: Record<string, ValidationResult[]> = {};
+
+    // Validate Clients
+    if (clientsData.data.length > 0) {
+      const clientResults = runDeterministicValidations(clientsData.data, clientsData.headers, 'clients');
+      errors.clients = clientResults.errors;
     }
-  }, [data, headers, entityType]);
+
+    // Validate Workers
+    if (workersData.data.length > 0) {
+      const workerResults = runDeterministicValidations(workersData.data, workersData.headers, 'workers');
+      errors.workers = workerResults.errors;
+    }
+
+    // Validate Tasks
+    if (tasksData.data.length > 0) {
+      const taskResults = runDeterministicValidations(tasksData.data, tasksData.headers, 'tasks');
+      errors.tasks = taskResults.errors;
+    }
+
+    // TODO: Add cross-file validations here later
+
+    setAllValidationErrors(errors);
+  }, [clientsData, workersData, tasksData]);
 
   useEffect(() => {
     triggerValidation();
-  }, [data, triggerValidation]);
+  }, [clientsData, workersData, tasksData, triggerValidation]);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, entityType: 'clients' | 'workers' | 'tasks') => {
     const file = event.target.files?.[0];
     if (file) {
-      setFileName(file.name);
-      const name = file.name.toLowerCase();
-      if (name.includes('client')) setEntityType('clients');
-      else if (name.includes('worker')) setEntityType('workers');
-      else if (name.includes('task')) setEntityType('tasks');
-      else setEntityType('unknown');
-
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          setHeaders(results.meta.fields || []);
-          setData(results.data);
+          const newEntityData = { data: results.data, headers: results.meta.fields || [], fileName: file.name };
+          if (entityType === 'clients') setClientsData(newEntityData);
+          else if (entityType === 'workers') setWorkersData(newEntityData);
+          else if (entityType === 'tasks') setTasksData(newEntityData);
         },
       });
     }
@@ -47,41 +68,104 @@ export default function Home() {
 
   const handleCellChange = (
     e: React.ChangeEvent<HTMLInputElement>,
+    entityType: 'clients' | 'workers' | 'tasks',
     rowIndex: number,
     header: string
   ) => {
-    const newData = [...data];
-    newData[rowIndex][header] = e.target.value;
-    setData(newData);
+    const setter = entityType === 'clients' ? setClientsData : entityType === 'workers' ? setWorkersData : setTasksData;
+    setter(prev => {
+      const newData = [...prev.data];
+      newData[rowIndex][header] = e.target.value;
+      return { ...prev, data: newData };
+    });
   };
 
-  const handleCellBlur = (rowIndex: number, header: string) => {
+  const handleCellBlur = (
+    entityType: 'clients' | 'workers' | 'tasks',
+    rowIndex: number,
+    header: string
+  ) => {
     const listValidationSchemas = {
         clients: { 'Requested TaskIDs': { numeric: false, allowRanges: false } },
         workers: { 'AvailableSlots': { numeric: true, allowRanges: false }, 'Skills': { numeric: false, allowRanges: false } },
         tasks: { 'PreferredPhases': { numeric: true, allowRanges: true }, 'RequiredSkills': { numeric: false, allowRanges: false } }
     };
 
-    if (entityType !== 'unknown' && listValidationSchemas[entityType][header]) {
+    const currentData = entityType === 'clients' ? clientsData.data : entityType === 'workers' ? workersData.data : tasksData.data;
+
+    if (listValidationSchemas[entityType] && listValidationSchemas[entityType][header]) {
         const options = listValidationSchemas[entityType][header];
-        const cellValue = data[rowIndex][header];
+        const cellValue = currentData[rowIndex][header];
         const result = validateAndNormalizeList(cellValue, options);
 
         if (result.normalized !== undefined && result.normalized !== cellValue) {
-            const newData = [...data];
-            newData[rowIndex][header] = result.normalized;
-            setData(newData);
+            const setter = entityType === 'clients' ? setClientsData : entityType === 'workers' ? setWorkersData : setTasksData;
+            setter(prev => {
+                const newData = [...prev.data];
+                newData[rowIndex][header] = result.normalized;
+                return { ...prev, data: newData };
+            });
         }
     }
     triggerValidation(); // Re-run validation on blur
   };
 
-  const getCellClassName = (rowIndex: number, header: string) => {
-    const isError = validationErrors.some(
+  const getCellClassName = (
+    entityType: 'clients' | 'workers' | 'tasks',
+    rowIndex: number,
+    header: string
+  ) => {
+    const errorsForEntity = allValidationErrors[entityType] || [];
+    const isError = errorsForEntity.some(
       (err) => err.rowIndex === rowIndex && err.header === header
     );
     return isError ? "ring-2 ring-red-500" : "";
   };
+
+  const renderDataTable = (data: any[], headers: string[], entityType: 'clients' | 'workers' | 'tasks') => {
+    if (data.length === 0) {
+      return (
+        <div className="p-4 border rounded-md bg-muted/40 min-h-[200px] flex items-center justify-center">
+          <p className="text-muted-foreground">
+            Upload {entityType} data to view and edit.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left border-collapse">
+          <thead className="bg-muted">
+            <tr>
+              {headers.map((header) => (
+                <th key={header} className="p-2 border-b">{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, rowIndex) => (
+              <tr key={rowIndex} className="border-b">
+                {headers.map((header) => (
+                  <td key={header} className="p-0">
+                    <Input
+                      type="text"
+                      value={row[header] || ""}
+                      onChange={(e) => handleCellChange(e, entityType, rowIndex, header)}
+                      onBlur={() => handleCellBlur(entityType, rowIndex, header)}
+                      className={`w-full h-full p-2 bg-transparent border-none rounded-none focus:ring-2 focus:ring-primary ${getCellClassName(entityType, rowIndex, header)}`}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const totalErrors = Object.values(allValidationErrors).flat().length;
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -97,25 +181,63 @@ export default function Home() {
           <CardHeader>
             <CardTitle>1. Upload Your Data</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-muted rounded-lg">
-            <input
-              type="file"
-              id="file-upload"
-              className="hidden"
-              accept=".csv"
-              onChange={handleFileUpload}
-            />
-            <label
-              htmlFor="file-upload"
-              className="cursor-pointer flex flex-col items-center gap-2 text-center"
-            >
-              <Upload className="w-10 h-10 text-muted-foreground" />
-              <span className="font-semibold">Click to upload a file</span>
-              <span className="text-sm text-muted-foreground">CSV up to 10MB</span>
-            </label>
-            {fileName && (
-              <p className="mt-4 text-sm font-medium">Uploaded: {fileName}</p>
-            )}
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Client Upload */}
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-muted rounded-lg">
+              <input
+                type="file"
+                id="client-upload"
+                className="hidden"
+                accept=".csv"
+                onChange={(e) => handleFileUpload(e, 'clients')}
+              />
+              <label
+                htmlFor="client-upload"
+                className="cursor-pointer flex flex-col items-center gap-2 text-center"
+              >
+                <Upload className="w-10 h-10 text-muted-foreground" />
+                <span className="font-semibold">Upload Clients CSV</span>
+                <span className="text-sm text-muted-foreground">{clientsData.fileName || 'No file chosen'}</span>
+              </label>
+            </div>
+
+            {/* Worker Upload */}
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-muted rounded-lg">
+              <input
+                type="file"
+                id="worker-upload"
+                className="hidden"
+                accept=".csv"
+                onChange={(e) => handleFileUpload(e, 'workers')}
+              />
+              <label
+                htmlFor="worker-upload"
+                className="cursor-pointer flex flex-col items-center gap-2 text-center"
+              >
+                <Upload className="w-10 h-10 text-muted-foreground" />
+                <span className="font-semibold">Upload Workers CSV</span>
+                <span className="text-sm text-muted-foreground">{workersData.fileName || 'No file chosen'}</span>
+              </label>
+            </div>
+
+            {/* Task Upload */}
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-muted rounded-lg">
+              <input
+                type="file"
+                id="task-upload"
+                className="hidden"
+                accept=".csv"
+                onChange={(e) => handleFileUpload(e, 'tasks')}
+              />
+              <label
+                htmlFor="task-upload"
+                className="cursor-pointer flex flex-col items-center gap-2 text-center"
+              >
+                <Upload className="w-10 h-10 text-muted-foreground" />
+                <span className="font-semibold">Upload Tasks CSV</span>
+                <span className="text-sm text-muted-foreground">{tasksData.fileName || 'No file chosen'}</span>
+              </label>
+            </div>
           </CardContent>
         </Card>
 
@@ -124,42 +246,22 @@ export default function Home() {
             <CardTitle>2. View and Edit Data</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              {data.length > 0 ? (
-                <table className="w-full text-sm text-left border-collapse">
-                  <thead className="bg-muted">
-                    <tr>
-                      {headers.map((header) => (
-                        <th key={header} className="p-2 border-b">{header}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.map((row, rowIndex) => (
-                      <tr key={rowIndex} className="border-b">
-                        {headers.map((header) => (
-                          <td key={header} className="p-0">
-                            <Input
-                              type="text"
-                              value={row[header] || ""}
-                              onChange={(e) => handleCellChange(e, rowIndex, header)}
-                              onBlur={() => handleCellBlur(rowIndex, header)}
-                              className={`w-full h-full p-2 bg-transparent border-none rounded-none focus:ring-2 focus:ring-primary ${getCellClassName(rowIndex, header)}`}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="p-4 border rounded-md bg-muted/40 min-h-[200px] flex items-center justify-center">
-                  <p className="text-muted-foreground">
-                    Your data will appear here after upload.
-                  </p>
-                </div>
-              )}
-            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="clients">Clients</TabsTrigger>
+                <TabsTrigger value="workers">Workers</TabsTrigger>
+                <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              </TabsList>
+              <TabsContent value="clients">
+                {renderDataTable(clientsData.data, clientsData.headers, 'clients')}
+              </TabsContent>
+              <TabsContent value="workers">
+                {renderDataTable(workersData.data, workersData.headers, 'workers')}
+              </TabsContent>
+              <TabsContent value="tasks">
+                {renderDataTable(tasksData.data, tasksData.headers, 'tasks')}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
@@ -168,20 +270,25 @@ export default function Home() {
             <CardTitle>3. Validation Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            {validationErrors.length > 0 ? (
+            {totalErrors > 0 ? (
               <ul className="list-disc space-y-1 pl-5 text-sm text-red-600">
-                {validationErrors.map((error, index) => (
-                  <li key={index}>
-                    {error.rowIndex === -1
-                      ? error.message
-                      : `Row ${error.rowIndex + 1}, Column '${error.header}': ${error.message}`}
-                  </li>
+                {Object.entries(allValidationErrors).map(([entityType, errors]) => (
+                  errors.map((error, index) => (
+                    <li key={`${entityType}-${index}`}>
+                      <strong>{entityType.charAt(0).toUpperCase() + entityType.slice(1)}: </strong>
+                      {error.rowIndex === -1
+                        ? error.message
+                        : `Row ${error.rowIndex + 1}, Column '${error.header}': ${error.message}`}
+                    </li>
+                  ))
                 ))}
               </ul>
             ) : (
               <div className="p-4 border rounded-md bg-muted/40 min-h-[100px] flex items-center justify-center">
                 <p className="text-muted-foreground">
-                  {data.length > 0 ? "No validation errors found." : "Validation results will be shown here."}
+                  {clientsData.data.length > 0 || workersData.data.length > 0 || tasksData.data.length > 0
+                    ? "No validation errors found." 
+                    : "Validation results will be shown here after you upload data."}
                 </p>
               </div>
             )}
