@@ -204,6 +204,7 @@ export default function Home() {
           clientsData: clientsData.data,
           workersData: workersData.data,
           tasksData: tasksData.data,
+          validationErrors: allValidationErrors,
         }),
       });
 
@@ -215,7 +216,8 @@ export default function Home() {
       console.log("AI Cleaning Suggestions:", data.result);
 
       try {
-        const cleanedResult = data.result.replace(/^```json\n|\n```$/g, '');        const suggestions = JSON.parse(cleanedResult);
+        const cleanedResult = data.result.replace(/^```json\n|\n```$/g, '');
+        const suggestions = JSON.parse(cleanedResult);
         console.log("Parsed AI Cleaning Suggestions:", suggestions);
         setCleaningSuggestions(suggestions);
       } catch (parseError) {
@@ -291,9 +293,13 @@ export default function Home() {
                         s.header === header
                     );
                     const cellClassName = getCellClassName(entityType, rowIndex, header);
+                    const validationError = allValidationErrors[entityType]?.find(
+                      (err) => err.rowIndex === rowIndex && err.header === header
+                    );
+
                     return (
                       <td key={header} className="p-0">
-                        {suggestion ? (
+                        {suggestion || validationError ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Input
@@ -305,17 +311,24 @@ export default function Home() {
                               />
                             </TooltipTrigger>
                             <TooltipContent className="bg-white text-black p-3 rounded-md shadow-lg border border-gray-200 max-w-xs">
-                              <p className="font-bold mb-1">Suggestion:</p>
-                              <p>Original: <span className="line-through text-red-500">{String(suggestion.originalValue)}</span></p>
-                              <p>Suggested: <span className="text-green-500">{String(suggestion.suggestedValue)}</span></p>
-                              <p className="text-muted-foreground text-xs mt-1">Reason: {suggestion.reason}</p>
-                              <Button
-                                size="sm"
-                                className="mt-2 w-full"
-                                onClick={() => applySuggestion(suggestion)}
-                              >
-                                Apply Suggestion
-                              </Button>
+                              {validationError && (
+                                <p className="font-bold mb-1 text-red-500">Error: {validationError.message}</p>
+                              )}
+                              {suggestion && (
+                                <>
+                                  <p className="font-bold mb-1">Suggestion:</p>
+                                  <p>Original: <span className="line-through text-red-500">{String(suggestion.originalValue)}</span></p>
+                                  <p>Suggested: <span className="text-green-500">{String(suggestion.suggestedValue)}</span></p>
+                                  <p className="text-muted-foreground text-xs mt-1">Reason: {suggestion.reason}</p>
+                                  <Button
+                                    size="sm"
+                                    className="mt-2 w-full"
+                                    onClick={() => applySuggestion(suggestion)}
+                                  >
+                                    Apply Suggestion
+                                  </Button>
+                                </>
+                              )}
                             </TooltipContent>
                           </Tooltip>
                         ) : (
