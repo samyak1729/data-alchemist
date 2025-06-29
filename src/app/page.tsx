@@ -215,11 +215,12 @@ export default function Home() {
       console.log("AI Cleaning Suggestions:", data.result);
 
       try {
-        const suggestions = JSON.parse(data.result);
+        const cleanedResult = data.result.replace(/^```json\n|\n```$/g, '');        const suggestions = JSON.parse(cleanedResult);
+        console.log("Parsed AI Cleaning Suggestions:", suggestions);
         setCleaningSuggestions(suggestions);
       } catch (parseError) {
+        console.error("Error parsing AI cleaning suggestions:", parseError);
         console.warn("AI cleaning suggestions were not a JSON object, displaying as is:", data.result);
-        setAiResponseText("AI Cleaning Suggestions: " + data.result);
         setCleaningSuggestions([]);
       }
 
@@ -289,6 +290,7 @@ export default function Home() {
                         s.rowIndex === rowIndex &&
                         s.header === header
                     );
+                    const cellClassName = getCellClassName(entityType, rowIndex, header);
                     return (
                       <td key={header} className="p-0">
                         {suggestion ? (
@@ -299,7 +301,7 @@ export default function Home() {
                                 value={row[header] || ""}
                                 onChange={(e) => handleCellChange(e, entityType, rowIndex, header)}
                                 onBlur={() => handleCellBlur(entityType, rowIndex, header)}
-                                className={`w-full h-full p-2 bg-transparent border-none rounded-none focus:ring-2 focus:ring-primary ${getCellClassName(entityType, rowIndex, header)}`}
+                                className={`w-full h-full p-2 bg-transparent rounded-none focus:ring-2 focus:ring-primary border border-solid border-[1px] ${cellClassName}`}
                               />
                             </TooltipTrigger>
                             <TooltipContent className="bg-white text-black p-3 rounded-md shadow-lg border border-gray-200 max-w-xs">
@@ -322,7 +324,7 @@ export default function Home() {
                             value={row[header] || ""}
                             onChange={(e) => handleCellChange(e, entityType, rowIndex, header)}
                             onBlur={() => handleCellBlur(entityType, rowIndex, header)}
-                            className={`w-full h-full p-2 bg-transparent border-none rounded-none focus:ring-2 focus:ring-primary ${getCellClassName(entityType, rowIndex, header)}`}
+                            className={`w-full h-full p-2 bg-transparent rounded-none focus:ring-2 focus:ring-primary border border-solid border-[1px] ${cellClassName}`}
                           />
                         )}
                       </td>
@@ -339,13 +341,28 @@ export default function Home() {
 
   const getCellClassName = (entityType: 'clients' | 'workers' | 'tasks', rowIndex: number, header: string) => {
     const errors = allValidationErrors[entityType];
+    const suggestion = cleaningSuggestions.find(
+      (s) =>
+        s.entityType === entityType &&
+        s.rowIndex === rowIndex &&
+        s.header === header
+    );
+
+    let className = '';
+
     if (errors) {
       const error = errors.find(err => err.rowIndex === rowIndex && err.header === header);
       if (error) {
-        return 'border-red-500';
+        className = 'border-red-500';
       }
     }
-    return '';
+
+    if (suggestion) {
+      className = 'border-yellow-500'; // Highlight for cleaning suggestions
+    }
+
+    console.log(`Cell: ${entityType}, Row: ${rowIndex}, Header: ${header}, Class: ${className}`);
+    return className;
   };
 
   const totalErrors = Object.values(allValidationErrors).flat().length;
