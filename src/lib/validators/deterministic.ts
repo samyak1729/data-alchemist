@@ -63,6 +63,8 @@ export const validateAndNormalizeList = (
   if (options.numeric) {
     const normalizedParts: number[] = [];
     for (const item of items) {
+      if (item === '') continue; // Allow for trailing commas
+
       if (options.allowRanges && item.includes('-')) {
         const parts = item.split('-').map(p => p.trim());
         if (parts.length !== 2) return { error: `Invalid range format: "${item}"` };
@@ -117,70 +119,297 @@ const validateBrokenJson = (data: any[], header: string): ValidationResult[] => 
   return errors;
 };
 
+// Rule: Unknown References (Requested TaskIDs not found in tasks)
+const validateUnknownReferences = (
+  clientsData: any[],
+  tasksData: any[]
+): ValidationResult[] => {
+  const errors: ValidationResult[] = [];
+  const taskIds = new Set(tasksData.map(task => task.TaskID));
+
+  clientsData.forEach((client, clientIndex) => {
+    const requestedTasksStr = client['Requested TaskIDs'];
+    if (requestedTasksStr) {
+      const { normalized, error } = validateAndNormalizeList(requestedTasksStr, { numeric: false, allowRanges: false });
+      if (error) {
+        errors.push({
+          rowIndex: clientIndex,
+          header: 'Requested TaskIDs',
+          message: `Malformed Requested TaskIDs: ${error}`,
+        });
+        return;
+      }
+      const requestedTaskIds = normalized ? normalized.split(',').map(id => id.trim()) : [];
+      requestedTaskIds.forEach(reqTaskId => {
+        if (!taskIds.has(reqTaskId)) {
+          errors.push({
+            rowIndex: clientIndex,
+            header: 'Requested TaskIDs',
+            message: `Unknown TaskID: ${reqTaskId} in Requested TaskIDs`,
+          });
+        }
+      });
+    }
+  });
+  return errors;
+};
+
+// Rule: Overloaded Workers (AvailableSlots.length < MaxLoadPerPhase)
+const validateOverloadedWorkers = (workersData: any[]): ValidationResult[] => {
+  const errors: ValidationResult[] = [];
+  workersData.forEach((worker, workerIndex) => {
+    const availableSlotsStr = worker.AvailableSlots;
+    const maxLoadPerPhase = Number(worker.MaxLoadPerPhase);
+
+    if (availableSlotsStr && !isNaN(maxLoadPerPhase)) {
+      const { normalized, error } = validateAndNormalizeList(availableSlotsStr, { numeric: true, allowRanges: false });
+      if (error) {
+        errors.push({
+          rowIndex: workerIndex,
+          header: 'AvailableSlots',
+          message: `Malformed AvailableSlots: ${error}`,
+        });
+        return;
+      }
+      const availableSlots = normalized ? normalized.split(',').map(Number) : [];
+      if (availableSlots.length < maxLoadPerPhase) {
+        errors.push({
+          rowIndex: workerIndex,
+          header: 'MaxLoadPerPhase',
+          message: `Worker has ${availableSlots.length} available slots but MaxLoadPerPhase is ${maxLoadPerPhase}`,
+        });
+      }
+    }
+  });
+  return errors;
+};
+
+// Rule: Skill-Coverage Matrix (every RequiredSkill maps to at least one worker)
+const validateSkillCoverageMatrix = (
+  tasksData: any[],
+  workersData: any[]
+): ValidationResult[] => {
+  const errors: ValidationResult[] = [];
+  const workerSkills = new Set<string>();
+
+  workersData.forEach(worker => {
+    const skillsStr = worker.Skills;
+    if (skillsStr) {
+      const { normalized } = validateAndNormalizeList(skillsStr, { numeric: false, allowRanges: false });
+      if (normalized) {
+        normalized.split(',').map(s => s.trim()).forEach(skill => workerSkills.add(skill));
+      }
+    }
+  });
+
+  tasksData.forEach((task, taskIndex) => {
+    const requiredSkillsStr = task.RequiredSkills;
+    if (requiredSkillsStr) {
+      const { normalized, error } = validateAndNormalizeList(requiredSkillsStr, { numeric: false, allowRanges: false });
+      if (error) {
+        errors.push({
+          rowIndex: taskIndex,
+          header: 'RequiredSkills',
+          message: `Malformed RequiredSkills: ${error}`,
+        });
+        return;
+      }
+      const requiredSkills = normalized ? normalized.split(',').map(s => s.trim()) : [];
+      requiredSkills.forEach(reqSkill => {
+        if (!workerSkills.has(reqSkill)) {
+          errors.push({
+            rowIndex: taskIndex,
+            header: 'RequiredSkills',
+            message: `Required skill '${reqSkill}' not found in any worker`,
+          });
+        }
+      });
+    }
+  });
+  return errors;
+};
+
+// Rule: Max-Concurrency Feasibility (MaxConcurrent <= count of qualified, available workers)
+const validateMaxConcurrencyFeasibility = (
+  tasksData: any[],
+  workersData: any[]
+): ValidationResult[] => {
+  const errors: ValidationResult[] = [];
+
+  tasksData.forEach((task, taskIndex) => {
+    const maxConcurrent = Number(task.MaxConcurrent);
+    const requiredSkillsStr = task.RequiredSkills;
+
+    if (isNaN(maxConcurrent) || maxConcurrent <= 0) {
+      // This should ideally be caught by out-of-range validation, but good to have a fallback
+      return;
+    }
+
+    let qualifiedWorkerCount = 0;
+    if (requiredSkillsStr) {
+      const { normalized } = validateAndNormalizeList(requiredSkillsStr, { numeric: false, allowRanges: false });
+      const requiredSkills = normalized ? normalized.split(',').map(s => s.trim()) : [];
+
+      workersData.forEach(worker => {
+        const workerSkillsStr = worker.Skills;
+        if (workerSkillsStr) {
+          const { normalized: workerNormalizedSkills } = validateAndNormalizeList(workerSkillsStr, { numeric: false, allowRanges: false });
+          const workerSkills = workerNormalizedSkills ? workerNormalizedSkills.split(',').map(s => s.trim()) : [];
+          
+          const hasAllSkills = requiredSkills.every(reqSkill => workerSkills.includes(reqSkill));
+          if (hasAllSkills) {
+            qualifiedWorkerCount++;
+          }
+        }
+      });
+    }
+
+    if (maxConcurrent > qualifiedWorkerCount) {
+      errors.push({
+        rowIndex: taskIndex,
+        header: 'MaxConcurrent',
+        message: `MaxConcurrent (${maxConcurrent}) is higher than available qualified workers (${qualifiedWorkerCount})`,
+      });
+    }
+  });
+  return errors;
+};
+
+// Rule: Phase-Slot Saturation (sum of task durations per phase > total worker slots)
+const validatePhaseSlotSaturation = (
+  tasksData: any[],
+  workersData: any[]
+): ValidationResult[] => {
+  const errors: ValidationResult[] = [];
+  const phaseCapacities: { [key: number]: number } = {}; // MaxLoadPerPhase sum
+  const phaseDemands: { [key: number]: number } = {}; // Task Duration sum
+
+  // Determine max phase for iteration
+  let maxPhase = 0;
+  workersData.forEach(worker => {
+    const availableSlotsStr = worker.AvailableSlots;
+    if (availableSlotsStr) {
+      const { normalized } = validateAndNormalizeList(availableSlotsStr, { numeric: true, allowRanges: false });
+      const slots = normalized ? normalized.split(',').map(Number) : [];
+      slots.forEach(slot => {
+        if (slot > maxPhase) maxPhase = slot;
+      });
+    }
+  });
+  tasksData.forEach(task => {
+    const preferredPhasesStr = task.PreferredPhases;
+    if (preferredPhasesStr) {
+      const { normalized } = validateAndNormalizeList(preferredPhasesStr, { numeric: true, allowRanges: true });
+      const phases = normalized ? normalized.split(',').map(Number) : [];
+      phases.forEach(phase => {
+        if (phase > maxPhase) maxPhase = phase;
+      });
+    }
+  });
+
+  // Calculate Phase Capacities
+  for (let p = 1; p <= maxPhase; p++) {
+    phaseCapacities[p] = 0;
+    workersData.forEach(worker => {
+      const availableSlotsStr = worker.AvailableSlots;
+      const maxLoadPerPhase = Number(worker.MaxLoadPerPhase);
+      if (availableSlotsStr && !isNaN(maxLoadPerPhase)) {
+        const { normalized } = validateAndNormalizeList(availableSlotsStr, { numeric: true, allowRanges: false });
+        const slots = normalized ? normalized.split(',').map(Number) : [];
+        if (slots.includes(p)) {
+          phaseCapacities[p] += maxLoadPerPhase;
+        }
+      }
+    });
+  }
+
+  // Calculate Phase Demands
+  for (let p = 1; p <= maxPhase; p++) {
+    phaseDemands[p] = 0;
+    tasksData.forEach(task => {
+      const duration = Number(task.Duration);
+      const preferredPhasesStr = task.PreferredPhases;
+
+      if (!isNaN(duration) && duration > 0 && preferredPhasesStr) {
+        const { normalized } = validateAndNormalizeList(preferredPhasesStr, { numeric: true, allowRanges: true });
+        const phases = normalized ? normalized.split(',').map(Number) : [];
+        
+        // A task contributes to demand for each phase it's active in within its duration
+        // and preferred phases. For simplicity, we assume a task consumes 1 slot per phase it's active.
+        // More complex logic might involve distributing duration across phases.
+        if (phases.includes(p)) {
+            phaseDemands[p] += 1; // Each task consumes 1 unit of demand per phase it's active in
+        }
+      }
+    });
+  }
+
+  // Compare Demands vs Capacities
+  for (let p = 1; p <= maxPhase; p++) {
+    if (phaseDemands[p] > phaseCapacities[p]) {
+      errors.push({
+        rowIndex: -1, // Table-wide error for the phase
+        header: `Phase ${p}`,
+        message: `Phase ${p} is saturated: Demand (${phaseDemands[p]}) exceeds Capacity (${phaseCapacities[p]})`,
+      });
+    }
+  }
+
+  return errors;
+};
+
 // --- Main Validation Orchestrator ---
 
+interface AllData {
+  clients: { data: any[]; headers: string[] };
+  workers: { data: any[]; headers: string[] };
+  tasks: { data: any[]; headers: string[] };
+}
+
 export const runDeterministicValidations = (
-  data: any[],
-  headers: string[],
-  entityType: 'clients' | 'workers' | 'tasks' | 'unknown'
-): ValidationResponse => {
-  if (entityType === 'unknown') {
-      return { errors: [{rowIndex: -1, header: '', message: 'Could not determine file type. Please name files with "client", "worker", or "task".'}], warnings: [] };
-  }
-
-  const allErrors: ValidationResult[] = [];
-
-  const schemas = {
-    clients: {
-      required: ['ClientID', 'PriorityLevel'],
-      id: 'ClientID',
-      range: { PriorityLevel: { min: 1, max: 5 } },
-      json: ['AttributesJSON'],
-      lists: { 'Requested TaskIDs': { numeric: false, allowRanges: false } }
-    },
-    workers: {
-      required: ['WorkerID', 'AvailableSlots'],
-      id: 'WorkerID',
-      lists: { 'AvailableSlots': { numeric: true, allowRanges: false }, 'Skills': { numeric: false, allowRanges: false } }
-    },
-    tasks: {
-      required: ['TaskID', 'Duration'],
-      id: 'TaskID',
-      range: { 'Duration': { min: 1, max: Infinity } },
-      lists: { 'PreferredPhases': { numeric: true, allowRanges: true }, 'RequiredSkills': { numeric: false, allowRanges: false } }
-    }
+  allData: AllData
+): Record<string, ValidationResult[]> => {
+  const allErrors: Record<string, ValidationResult[]> = {
+    clients: [],
+    workers: [],
+    tasks: [],
   };
 
-  const schema = schemas[entityType];
+  const { clients, workers, tasks } = allData;
 
-  allErrors.push(...validateRequiredColumns(headers, schema.required));
-  allErrors.push(...validateDuplicateIds(data, schema.id));
+  // --- Single-Entity Validations ---
 
-  if (schema.range) {
-    for (const [header, range] of Object.entries(schema.range)) {
-      allErrors.push(...validateOutOfRange(data, header, range.min, range.max));
-    }
+  // Clients
+  allErrors.clients.push(...validateRequiredColumns(clients.headers, ['ClientID', 'PriorityLevel', 'Requested TaskIDs', 'AttributesJSON']));
+  allErrors.clients.push(...validateDuplicateIds(clients.data, 'ClientID'));
+  allErrors.clients.push(...validateOutOfRange(clients.data, 'PriorityLevel', 1, 5));
+  allErrors.clients.push(...validateBrokenJson(clients.data, 'AttributesJSON'));
+  // Requested TaskIDs list format is handled by cross-validation below
+
+  // Workers
+  allErrors.workers.push(...validateRequiredColumns(workers.headers, ['WorkerID', 'Skills', 'AvailableSlots', 'MaxLoadPerPhase']));
+  allErrors.workers.push(...validateDuplicateIds(workers.data, 'WorkerID'));
+  allErrors.workers.push(...validateOverloadedWorkers(workers.data)); // Single-entity check
+
+  // Tasks
+  allErrors.tasks.push(...validateRequiredColumns(tasks.headers, ['TaskID', 'Duration', 'RequiredSkills', 'PreferredPhases', 'MaxConcurrent']));
+  allErrors.tasks.push(...validateDuplicateIds(tasks.data, 'TaskID'));
+  allErrors.tasks.push(...validateOutOfRange(tasks.data, 'Duration', 1, Infinity));
+  allErrors.tasks.push(...validateOutOfRange(tasks.data, 'MaxConcurrent', 1, Infinity));
+
+  // --- Cross-Entity Validations ---
+  if (clients.data.length > 0 && tasks.data.length > 0) {
+    allErrors.clients.push(...validateUnknownReferences(clients.data, tasks.data));
   }
-  
-  if (schema.json) {
-      for (const header of schema.json) {
-          allErrors.push(...validateBrokenJson(data, header));
-      }
+
+  if (tasks.data.length > 0 && workers.data.length > 0) {
+    allErrors.tasks.push(...validateSkillCoverageMatrix(tasks.data, workers.data));
+    allErrors.tasks.push(...validateMaxConcurrencyFeasibility(tasks.data, workers.data));
   }
 
-  if (schema.lists) {
-      for (const [header, options] of Object.entries(schema.lists)) {
-          data.forEach((row, rowIndex) => {
-              const result = validateAndNormalizeList(row[header], options);
-              if (result.error) {
-                  allErrors.push({ rowIndex, header, message: result.error });
-              }
-          });
-      }
+  if (tasks.data.length > 0 && workers.data.length > 0) {
+    allErrors.tasks.push(...validatePhaseSlotSaturation(tasks.data, workers.data));
   }
 
-  return {
-    errors: allErrors,
-    warnings: [],
-  };
+  return allErrors;
 };

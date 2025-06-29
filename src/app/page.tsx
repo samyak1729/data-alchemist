@@ -21,34 +21,18 @@ export default function Home() {
   const [allValidationErrors, setAllValidationErrors] = useState<Record<string, ValidationResult[]>>({});
 
   const triggerValidation = useCallback(() => {
-    const errors: Record<string, ValidationResult[]> = {};
-
-    // Validate Clients
-    if (clientsData.data.length > 0) {
-      const clientResults = runDeterministicValidations(clientsData.data, clientsData.headers, 'clients');
-      errors.clients = clientResults.errors;
-    }
-
-    // Validate Workers
-    if (workersData.data.length > 0) {
-      const workerResults = runDeterministicValidations(workersData.data, workersData.headers, 'workers');
-      errors.workers = workerResults.errors;
-    }
-
-    // Validate Tasks
-    if (tasksData.data.length > 0) {
-      const taskResults = runDeterministicValidations(tasksData.data, tasksData.headers, 'tasks');
-      errors.tasks = taskResults.errors;
-    }
-
-    // TODO: Add cross-file validations here later
-
-    setAllValidationErrors(errors);
+    const allData = {
+      clients: clientsData,
+      workers: workersData,
+      tasks: tasksData,
+    };
+    const results = runDeterministicValidations(allData);
+    setAllValidationErrors(results);
   }, [clientsData, workersData, tasksData]);
 
   useEffect(() => {
     triggerValidation();
-  }, [clientsData, workersData, tasksData, triggerValidation]);
+  }, [clientsData.data, workersData.data, tasksData.data, triggerValidation]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, entityType: 'clients' | 'workers' | 'tasks') => {
     const file = event.target.files?.[0];
