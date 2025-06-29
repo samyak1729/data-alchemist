@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
 import Papa from "papaparse";
 
@@ -22,6 +23,16 @@ export default function Home() {
         },
       });
     }
+  };
+
+  const handleCellChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    rowIndex: number,
+    header: string
+  ) => {
+    const newData = [...data];
+    newData[rowIndex][header] = e.target.value;
+    setData(newData);
   };
 
   return (
@@ -79,7 +90,14 @@ export default function Home() {
                     {data.map((row, rowIndex) => (
                       <tr key={rowIndex} className="border-b">
                         {headers.map((header) => (
-                          <td key={header} className="p-2">{row[header]}</td>
+                          <td key={header} className="p-0">
+                            <Input
+                              type="text"
+                              value={row[header] || ""}
+                              onChange={(e) => handleCellChange(e, rowIndex, header)}
+                              className="w-full h-full p-2 border-none rounded-none focus:ring-2 focus:ring-primary"
+                            />
+                          </td>
                         ))}
                       </tr>
                     ))}
