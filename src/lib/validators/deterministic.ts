@@ -128,7 +128,7 @@ const validateUnknownReferences = (
   clientsData.forEach((client, clientIndex) => {
     const requestedTasksStr = client['Requested TaskIDs'];
     if (requestedTasksStr) {
-      const { normalized, error } = validateAndNormalizeList(requestedTasksStr, { numeric: false, allowRanges: false });
+      const { normalized, error } = validateAndNormalizeList(String(requestedTasksStr), { numeric: false, allowRanges: false });
       if (error) {
         errors.push({
           rowIndex: clientIndex,
