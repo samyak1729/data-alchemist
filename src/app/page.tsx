@@ -117,7 +117,7 @@ export default function Home() {
 
     if (options) {
         const cellValue = currentData[rowIndex][header];
-        const result = validateAndNormalizeList(cellValue, options);
+        const result = validateAndNormalizeList(String(cellValue), options);
 
         if (result.normalized !== undefined && result.normalized !== cellValue) {
             const setter = entityType === 'clients' ? setClientsData : entityType === 'workers' ? setWorkersData : setTasksData;
