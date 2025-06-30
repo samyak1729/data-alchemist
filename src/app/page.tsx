@@ -24,6 +24,12 @@ interface CleaningSuggestion {
   reason: string;
 }
 
+interface AiFilteredDataResponse {
+  clients?: Record<string, string | number | boolean | object>[];
+  workers?: Record<string, string | number | boolean | object>[];
+  tasks?: Record<string, string | number | boolean | object>[];
+}
+
 type ValidationOptions = { numeric: boolean; allowRanges: boolean; };
 
 type EntityType = 'clients' | 'workers' | 'tasks';
@@ -163,7 +169,7 @@ export default function Home() {
       // Assuming the AI returns filtered data in a specific JSON format
       // You'll need to adjust this parsing based on your AI's actual output
       try {
-        const aiResponse = JSON.parse(data.result) as Record<string, string | number | boolean | object>;
+        const aiResponse = JSON.parse(data.result) as AiFilteredDataResponse;
         if (aiResponse.clients) setFilteredClientsData(aiResponse.clients);
         if (aiResponse.workers) setFilteredWorkersData(aiResponse.workers);
         if (aiResponse.tasks) setFilteredTasksData(aiResponse.tasks);
