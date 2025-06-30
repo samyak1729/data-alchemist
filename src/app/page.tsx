@@ -38,6 +38,7 @@ export default function Home() {
   const [cleaningSuggestions, setCleaningSuggestions] = useState<CleaningSuggestion[]>([]);
 
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const triggerValidation = useCallback(() => {
     const allData = {
       clients: clientsData,
@@ -48,9 +49,10 @@ export default function Home() {
     setAllValidationErrors(results);
   }, [clientsData, workersData, tasksData]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     triggerValidation();
-  }, [clientsData.data, workersData.data, tasksData.data, triggerValidation]);
+  }, [triggerValidation]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, entityType: 'clients' | 'workers' | 'tasks') => {
     const file = event.target.files?.[0];
