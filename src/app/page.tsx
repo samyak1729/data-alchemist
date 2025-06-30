@@ -347,7 +347,7 @@ export default function Home() {
                         ) : (
                           <Input
                             type="text"
-                            value={row[header] || ""}
+                            value={String(row[header]) || ""}
                             onChange={(e) => handleCellChange(e, entityType, rowIndex, header)}
                             onBlur={() => handleCellBlur(entityType, rowIndex, header)}
                             className={`w-full h-full p-2 bg-transparent rounded-none focus:ring-2 focus:ring-primary border border-solid border-[1px] ${cellClassName}`}
