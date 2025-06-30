@@ -24,6 +24,16 @@ interface CleaningSuggestion {
   reason: string;
 }
 
+type ValidationOptions = { numeric: boolean; allowRanges: boolean; };
+
+type EntityType = 'clients' | 'workers' | 'tasks';
+
+type ValidationSchemaMap = {
+  [K in EntityType]: {
+    [key: string]: ValidationOptions;
+  };
+};
+
 export default function Home() {
   const [clientsData, setClientsData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
   const [workersData, setWorkersData] = useState<EntityData>({ data: [], headers: [], fileName: '' });
@@ -87,16 +97,25 @@ export default function Home() {
     rowIndex: number,
     header: string
   ) => {
-    const listValidationSchemas = {
+    const listValidationSchemas: ValidationSchemaMap = {
         clients: { 'Requested TaskIDs': { numeric: false, allowRanges: false } },
         workers: { 'AvailableSlots': { numeric: true, allowRanges: false }, 'Skills': { numeric: false, allowRanges: false } },
         tasks: { 'PreferredPhases': { numeric: true, allowRanges: true }, 'RequiredSkills': { numeric: false, allowRanges: false } }
     };
 
+    const getValidationOptions = (entityType: EntityType, header: string): ValidationOptions | undefined => {
+      const schema = listValidationSchemas[entityType];
+      if (schema && header in schema) {
+        return schema[header];
+      }
+      return undefined;
+    };
+
     const currentData = entityType === 'clients' ? clientsData.data : entityType === 'workers' ? workersData.data : tasksData.data;
 
-    if (listValidationSchemas[entityType] && listValidationSchemas[entityType][header]) {
-        const options = listValidationSchemas[entityType][header];
+    const options = getValidationOptions(entityType, header);
+
+    if (options) {
         const cellValue = currentData[rowIndex][header];
         const result = validateAndNormalizeList(cellValue, options);
 
