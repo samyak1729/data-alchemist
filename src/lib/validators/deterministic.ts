@@ -106,7 +106,7 @@ const validateOutOfRange = (data: Record<string, string | number | boolean | obj
 // Rule: Broken JSON
 const validateBrokenJson = (data: Record<string, string | number | boolean | object>[], header: string): ValidationResult[] => {
   const errors: ValidationResult[] = [];
-  data.forEach((row, /* eslint-disable-next-line @typescript-eslint/no-unused-vars */ _) => {
+  data.forEach((row) => {
     const value = row[header];
     if (value && typeof value === 'string') {
       try {
