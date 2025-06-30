@@ -123,7 +123,7 @@ export default function Home() {
             const setter = entityType === 'clients' ? setClientsData : entityType === 'workers' ? setWorkersData : setTasksData;
             setter(prev => {
                 const newData = [...prev.data] as Record<string, string | number | boolean | object>[];
-                newData[rowIndex][header] = result.normalized;
+                newData[rowIndex][header] = result.normalized as string;
                 return { ...prev, data: newData };
             });
         }
