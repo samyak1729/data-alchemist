@@ -28,8 +28,8 @@ const validateDuplicateIds = (data: Record<string, string | number | boolean | o
   data.forEach(row => {
     const id = row[idHeader];
     if (id) {
-      if (seenIds.has(id)) duplicateIds.add(id);
-      else seenIds.add(id);
+      if (seenIds.has(String(id))) duplicateIds.add(String(id));
+      else seenIds.add(String(id));
     }
   });
 
