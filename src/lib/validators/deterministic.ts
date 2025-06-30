@@ -35,7 +35,7 @@ const validateDuplicateIds = (data: Record<string, string | number | boolean | o
 
   const errors: ValidationResult[] = [];
   data.forEach((row, rowIndex) => {
-    if (duplicateIds.has(row[idHeader])) {
+    if (duplicateIds.has(String(row[idHeader]))) {
       errors.push({
         rowIndex,
         header: idHeader,
