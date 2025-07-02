@@ -84,6 +84,23 @@ export default function Home() {
     }
   };
 
+  const handleLoadDummyData = (entityType: 'clients' | 'workers' | 'tasks', fileName: string) => {
+    fetch(`/data/${fileName}`)
+      .then(response => response.text())
+      .then(csvText => {
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            const newEntityData = { data: results.data as Record<string, string | number | boolean | object>[], headers: results.meta.fields || [], fileName };
+            if (entityType === 'clients') setClientsData(newEntityData);
+            else if (entityType === 'workers') setWorkersData(newEntityData);
+            else if (entityType === 'tasks') setTasksData(newEntityData);
+          },
+        });
+      });
+  };
+
   const handleCellChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     entityType: 'clients' | 'workers' | 'tasks',
@@ -425,6 +442,7 @@ export default function Home() {
                 <span className="font-semibold">Upload Clients CSV</span>
                 <span className="text-sm text-muted-foreground">{clientsData.fileName || 'No file chosen'}</span>
               </label>
+              <Button variant="link" onClick={() => handleLoadDummyData('clients', 'clients_test_data_with_errors.csv')}>Load Dummy Data</Button>
             </div>
 
             {/* Worker Upload */}
@@ -444,6 +462,7 @@ export default function Home() {
                 <span className="font-semibold">Upload Workers CSV</span>
                 <span className="text-sm text-muted-foreground">{workersData.fileName || 'No file chosen'}</span>
               </label>
+              <Button variant="link" onClick={() => handleLoadDummyData('workers', 'workers_test_data_with_errors.csv')}>Load Dummy Data</Button>
             </div>
 
             {/* Task Upload */}
@@ -463,6 +482,7 @@ export default function Home() {
                 <span className="font-semibold">Upload Tasks CSV</span>
                 <span className="text-sm text-muted-foreground">{tasksData.fileName || 'No file chosen'}</span>
               </label>
+              <Button variant="link" onClick={() => handleLoadDummyData('tasks', 'tasks_test_data_with_errors.csv')}>Load Dummy Data</Button>
             </div>
           </CardContent>
         </Card>

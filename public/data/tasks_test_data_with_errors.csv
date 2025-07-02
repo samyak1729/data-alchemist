@@ -1,0 +1,53 @@
+TaskID,TaskName,Category,Duration,RequiredSkills,PreferredPhases,MaxConcurrent
+T1,Data Cleanup,ETL,2,coding,"1 - 2",3
+T1,Report Generation,Analytics,1,"analysis,reporting","[2,3,4]",2
+T3,Model Training,ML,0,ml,coding,"3 - 5",1
+T4,UI Prototype,Design,2,design,"[1,x,2]",2
+T5,Load Testing,QA,1,testing,"2 - 3",2
+T6,Backend Development,Development,3,coding,"1 - 3",3
+T7,Frontend Development,Development,2,coding,design,"2 - 4",4
+T8,Database Migration,DevOps,4,"devops,database","1 - 5",1
+T9,Content Creation,Marketing,1,writing,"[1,2,3,4,5]",5
+T10,SEO Optimization,Marketing,2,seo,"3 - 5",3
+T11,Market Research,Marketing,3,analysis,"1 - 2",2
+T12,Project Planning,Management,1,management,"[1]",1
+T13,Risk Assessment,Management,2,risk_management,"3 - 4",1
+T14,Budget Allocation,Finance,1,finance,"[1,2]",2
+T15,Legal Review,Legal,2,legal,"3 - 5",1
+T16,Compliance Audit,Legal,3,compliance,"1 - 3",1
+T17,Customer Support,Support,1,communication,"[1,2,3,4,5]",5
+T18,Technical Documentation,Documentation,2,writing,tech_writing,"2 - 4",2
+T19,Training Session,HR,1,training,"[1,2,3,4,5]",3
+T20,Recruitment,HR,2,hr,"3 - 5",2
+T21,Performance Review,HR,1,management,"[1,2]",1
+T22,System Maintenance,IT,3,it_support,"1 - 3",2
+T23,Network Configuration,IT,2,networking,"2 - 4",1
+T24,Security Audit,IT,4,security,"1 - 5",1
+T25,Data Analysis,Analytics,2,"analysis,statistics","1 - 3",3
+T26,Report Design,Analytics,1,design,reporting,"3 - 5",2
+T27,Predictive Modeling,ML,3,"ml,statistics","1 - 4",1
+T28,User Research,Design,2,research,"2 - 5",2
+T29,A/B Testing,QA,1,testing,analytics,"1 - 2",3
+T30,API Development,Development,3,coding,"3 - 5",4
+T31,Mobile App Development,Development,2,mobile_dev,"1 - 4",3
+T32,Cloud Infrastructure,DevOps,4,"devops,cloud_engineering","2 - 5",1
+T33,Social Media Campaign,Marketing,1,social_media,"[1,2,3]",5
+T34,Email Marketing,Marketing,2,email_marketing,"4 - 5",3
+T35,Competitor Analysis,Marketing,3,market_research,"1 - 3",2
+T36,Resource Allocation,Management,1,management,"[1]",1
+T37,Stakeholder Communication,Management,2,communication,"2 - 4",1
+T38,Financial Reporting,Finance,1,finance,"[1,2]",2
+T39,Contract Negotiation,Legal,2,legal,"3 - 5",1
+T40,Policy Development,Legal,3,policy,"1 - 3",1
+T41,Customer Onboarding,Support,1,onboarding,"[1,2,3,4,5]",5
+T42,Knowledge Base Update,Documentation,2,writing,documentation,"2 - 4",2
+T43,Employee Training,HR,1,training,"[1,2,3,4,5]",3
+T44,Benefits Management,HR,2,hr,"3 - 5",2
+T45,IT Support,IT,1,it_support,"[1,2]",1
+T46,Hardware Installation,IT,3,hardware,"1 - 3",2
+T47,Software Deployment,DevOps,2,devops,"2 - 4",3
+T48,Code Review,Development,1,coding,"[1,2,3,4,5]",4
+T49,Data Privacy Audit,Legal,3,privacy,compliance,"1 - 5",1
+T50,User Feedback Analysis,Analytics,2,analysis,"2 - 3",3
+T_UNCOV,Quantum Entanglement Research,R&D,5,"quantum_mechanics,theoretical_physics","[1,2,3,4,5]",1
+T_HIGHCONC,Massive Deployment,DevOps,1,"devops,cloud_engineering","[1]",10
