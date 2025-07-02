@@ -160,7 +160,7 @@ const validateOverloadedWorkers = (workersData: Record<string, string | number |
     const maxLoadPerPhase = Number(worker.MaxLoadPerPhase);
 
     if (availableSlotsStr && !isNaN(maxLoadPerPhase)) {
-      const { normalized, error } = validateAndNormalizeList(availableSlotsStr, { numeric: true, allowRanges: false });
+      const { normalized, error } = validateAndNormalizeList(String(availableSlotsStr), { numeric: true, allowRanges: false });
       if (error) {
         errors.push({
           rowIndex: workerIndex,
@@ -193,7 +193,7 @@ const validateSkillCoverageMatrix = (
   workersData.forEach(worker => {
     const skillsStr = worker.Skills;
     if (skillsStr) {
-      const { normalized } = validateAndNormalizeList(skillsStr, { numeric: false, allowRanges: false });
+      const { normalized } = validateAndNormalizeList(String(skillsStr), { numeric: false, allowRanges: false });
       if (normalized) {
         normalized.split(',').map(s => s.trim()).forEach(skill => workerSkills.add(skill));
       }
@@ -203,7 +203,7 @@ const validateSkillCoverageMatrix = (
   tasksData.forEach((task, taskIndex) => {
     const requiredSkillsStr = task.RequiredSkills;
     if (requiredSkillsStr) {
-      const { normalized, error } = validateAndNormalizeList(requiredSkillsStr, { numeric: false, allowRanges: false });
+      const { normalized, error } = validateAndNormalizeList(String(requiredSkillsStr), { numeric: false, allowRanges: false });
       if (error) {
         errors.push({
           rowIndex: taskIndex,
@@ -245,13 +245,13 @@ const validateMaxConcurrencyFeasibility = (
 
     let qualifiedWorkerCount = 0;
     if (requiredSkillsStr) {
-      const { normalized } = validateAndNormalizeList(requiredSkillsStr, { numeric: false, allowRanges: false });
+      const { normalized } = validateAndNormalizeList(String(requiredSkillsStr), { numeric: false, allowRanges: false });
       const requiredSkills = normalized ? normalized.split(',').map(s => s.trim()) : [];
 
       workersData.forEach(worker => {
         const workerSkillsStr = worker.Skills;
         if (workerSkillsStr) {
-          const { normalized: workerNormalizedSkills } = validateAndNormalizeList(workerSkillsStr, { numeric: false, allowRanges: false });
+          const { normalized: workerNormalizedSkills } = validateAndNormalizeList(String(workerSkillsStr), { numeric: false, allowRanges: false });
           const workerSkills = workerNormalizedSkills ? workerNormalizedSkills.split(',').map(s => s.trim()) : [];
           
           const hasAllSkills = requiredSkills.every(reqSkill => workerSkills.includes(reqSkill));
@@ -287,7 +287,7 @@ const validatePhaseSlotSaturation = (
   workersData.forEach(worker => {
     const availableSlotsStr = worker.AvailableSlots;
     if (availableSlotsStr) {
-      const { normalized } = validateAndNormalizeList(availableSlotsStr, { numeric: true, allowRanges: false });
+      const { normalized } = validateAndNormalizeList(String(availableSlotsStr), { numeric: true, allowRanges: false });
       const slots = normalized ? normalized.split(',').map(Number) : [];
       slots.forEach(slot => {
         if (slot > maxPhase) maxPhase = slot;
@@ -297,7 +297,7 @@ const validatePhaseSlotSaturation = (
   tasksData.forEach(task => {
     const preferredPhasesStr = task.PreferredPhases;
     if (preferredPhasesStr) {
-      const { normalized } = validateAndNormalizeList(preferredPhasesStr, { numeric: true, allowRanges: true });
+      const { normalized } = validateAndNormalizeList(String(preferredPhasesStr), { numeric: true, allowRanges: true });
       const phases = normalized ? normalized.split(',').map(Number) : [];
       phases.forEach(phase => {
         if (phase > maxPhase) maxPhase = phase;
@@ -312,7 +312,7 @@ const validatePhaseSlotSaturation = (
       const availableSlotsStr = worker.AvailableSlots;
       const maxLoadPerPhase = Number(worker.MaxLoadPerPhase);
       if (availableSlotsStr && !isNaN(maxLoadPerPhase)) {
-        const { normalized } = validateAndNormalizeList(availableSlotsStr, { numeric: true, allowRanges: false });
+        const { normalized } = validateAndNormalizeList(String(availableSlotsStr), { numeric: true, allowRanges: false });
         const slots = normalized ? normalized.split(',').map(Number) : [];
         if (slots.includes(p)) {
           phaseCapacities[p] += maxLoadPerPhase;
@@ -329,7 +329,7 @@ const validatePhaseSlotSaturation = (
       const preferredPhasesStr = task.PreferredPhases;
 
       if (!isNaN(duration) && duration > 0 && preferredPhasesStr) {
-        const { normalized } = validateAndNormalizeList(preferredPhasesStr, { numeric: true, allowRanges: true });
+        const { normalized } = validateAndNormalizeList(String(preferredPhasesStr), { numeric: true, allowRanges: true });
         const phases = normalized ? normalized.split(',').map(Number) : [];
         
         // A task contributes to demand for each phase it's active in within its duration
